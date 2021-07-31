@@ -23,33 +23,30 @@ WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "ntp1.aliyun.com", 60 * 60 * 8, 60000);//东8区
 Ticker ticker;
 
-int runtime = 9;//需要几点浇水
+int startTime = 9;//第一次几点浇水
 int repeatTime = 24 * 3;//间隔几个小时浇水
 int watering = 10;//电机开启时间秒
-int lastWateringDay = -1;//上次浇水星期几
-int lastWateringHour = -1;//上次浇水小时
+int lastWateringDay = 0;//上次浇水星期几
+int lastWateringHour = 0;//上次浇水小时
+int initTimeCount = 0;
 
 ESP8266WebServer server(80);
 
 void write(int addr, int time) {
-    Serial.println("Start write");
     EEPROM.begin(addr + 1);//size为需要读写的数据字节最大地址+1，取值4~4096
     EEPROM.write(addr, time); //写数据
     EEPROM.commit(); //保存更改的数据
-    Serial.println("End write");
 }
 
 int read(int addr) {
-    Serial.println("Start read");
     EEPROM.begin(addr + 1);
     int data = EEPROM.read(addr); //读数据
-    Serial.println(data);
-    Serial.println("End read");
     return data;
 }
 
 void autoWatering() {
-    Serial.println("autoWatering");
+    Serial.println(String() + "autoWatering" + watering);
+    Serial.println();
     digitalWrite(PUMP, 1);
     delay(watering * 1000);
     digitalWrite(PUMP, 0);
@@ -61,12 +58,23 @@ void autoWatering() {
 
 void timerTask() {
     timeClient.update();
+
+    //开始时间会不准，5次调用之后再开始使用
+    if (initTimeCount < 6) {
+        initTimeCount++;
+        Serial.println(String() + " initTimeCount " + initTimeCount);
+        return;
+    }
+
     int dayOfWeek = timeClient.getDay();//0-6
     int hours = timeClient.getHours();
+    Serial.println(String() + "startTime: " + startTime + " ,repeatHour: " + repeatTime);
+    Serial.println(String() + "current dayOfWeek: " + dayOfWeek + " ,hours: " + hours);
+    Serial.println(String() + "last dayOfWeek: " + lastWateringDay + " ,hours: " + lastWateringHour);
 
     //还没浇水过
-    if (lastWateringHour < 0 || lastWateringDay < 0) {
-        if (hours == runtime) {
+    if (lastWateringHour <= 0 || lastWateringDay <= 0) {
+        if (hours == startTime) {
             autoWatering();
         }
         return;
@@ -76,29 +84,33 @@ void timerTask() {
     int lastWaterHour = lastWateringDay * 24 + lastWateringHour;
     int interval = nowHour - lastWaterHour;
     if (interval < 0) {//跨周了
-        interval = 24 * 7 - lastWaterHour + nowHour;
+        interval = 24 * 7 + (nowHour - lastWaterHour);
     }
-    if (interval > runtime) {//需要浇水了
+    if (interval > repeatTime) {//需要浇水了
         autoWatering();
     }
 }
 
 void openPump() {
+    Serial.println("openPump");
     digitalWrite(PUMP, 1);
     server.send(200, "text/plain", "ok");
 }
 
 void closePump() {
+    Serial.println("closePump");
     digitalWrite(PUMP, 0);
     server.send(200, "text/plain", "ok");
 }
 
 void openLight() {
+    Serial.println("openLight");
     digitalWrite(LED, 1);
     server.send(200, "text/plain", "ok");
 }
 
 void closeLight() {
+    Serial.println("closeLight");
     digitalWrite(LED, 0);
     server.send(200, "text/plain", "ok");
 }
@@ -147,11 +159,17 @@ void handlerConfirm() {
     } else {
         timeInt = timeClient.getHours();
     }
-    runtime = timeInt;
+    startTime = timeInt;
     write(EEPROM_RUNTIME, timeInt);
 
     int repeatHour;
-    if (repeat == "6 hour") {
+    if (repeat == "1 hour") {
+        repeatHour = 1;
+    } else if (repeat == "2 hour") {
+        repeatHour = 2;
+    } else if (repeat == "3 hour") {
+        repeatHour = 3;
+    } else if (repeat == "6 hour") {
         repeatHour = 6;
     } else if (repeat == "12 hour") {
         repeatHour = 12;
@@ -184,8 +202,8 @@ void handlerConfirm() {
     write(EEPROM_WATERING, watering);
 
     //清理上次浇水时间
-    lastWateringDay = -1;
-    lastWateringHour = -1;
+    lastWateringDay = 0;
+    lastWateringHour = 0;
     write(EEPROM_LAST_DAY, lastWateringDay);
     write(EEPROM_LAT_HOUR, lastWateringHour);
 
@@ -250,7 +268,7 @@ void setup() {
     ticker.attach(10, timerTask);
     timeClient.begin();
 
-    runtime = read(EEPROM_RUNTIME);
+    startTime = read(EEPROM_RUNTIME);
     repeatTime = read(EEPROM_REPEAT);
     watering = read(EEPROM_WATERING);
     lastWateringDay = read(EEPROM_LAST_DAY);
@@ -259,4 +277,5 @@ void setup() {
 
 void loop() {
     loopServer();
+
 }
