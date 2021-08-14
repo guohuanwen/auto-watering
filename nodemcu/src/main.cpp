@@ -12,8 +12,8 @@
 #include "LiquidCrystal_I2C.h"
 
 #define LED D0
-#define SCREEN_SDA D1
-#define SCREEN_SCL D2
+#define SCREEN_SCL D1
+#define SCREEN_SDA D2
 #define SOIL_AO A0
 #define SOIL_DO D4
 #define PUMP D5
