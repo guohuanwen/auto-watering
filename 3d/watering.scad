@@ -33,7 +33,7 @@ translate([40, 54, 0]) {
     cylinder(h=3, r1=2, r2=2);
 }
 
-translate([86, 58, 0]) {
+translate([86, 54, 0]) {
     cylinder(h=8, r1=1, r2=1);
     cylinder(h=3, r1=2, r2=2);
 }

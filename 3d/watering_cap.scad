@@ -2,16 +2,16 @@ $fa = 0.1;
 $fs = 0.1;
 
 thickness = 1;
-xLenght = 112;
-yLenght = 72;
+xLenght = 113;
+yLenght = 73;
 zLenght = 5;
 cube([xLenght, thickness, zLenght]);
 cube([thickness, yLenght, zLenght]);
 
 difference() {
     cube([xLenght, yLenght, thickness]);
-    translate([20, 8, -10]) {
-        cube([73, 26, 25]);
+    translate([20.5, 16, -10]) {
+        cube([72, 25, 25]);
     }
     
     translate([7, 56, -10]) {
